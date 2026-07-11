@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
+<title>Squama</title>
+<meta name="description" content="Monitora pasti, peso e muta dei tuoi rettili" />
+<meta name="theme-color" content="#122019" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Squama" />
+<meta name="mobile-web-app-capable" content="yes" />
+<link rel="icon" href="icon.png" type="image/png" />
+<link rel="apple-touch-icon" href="icon.png" />
+<link rel="manifest" href="manifest.json" />
+<style>
+  :root{
+    --bg:#0e1712; --bg2:#142019; --card:#1b2b22; --cardline:#28392f;
+    --ink:#f2f3ee; --inkdim:#a3b3a8; --amber:#e6ac4d; --amber2:#c98a34;
+    --green:#4c8d67; --red:#d6685f; --rlg:22px; --rmd:14px; --rsm:10px;
+    --sb:env(safe-area-inset-bottom,0px); --st:env(safe-area-inset-top,0px);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;overscroll-behavior:none;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    background:var(--bg);color:var(--ink);
+  }
+  button,input,select,textarea{font-family:inherit;color:inherit;}
+  button{background:none;border:none;cursor:pointer;}
+
+  /* Splash */
+  #splash{
+    position:fixed;inset:0;background:radial-gradient(circle at 50% 35%,#1b3527,var(--bg) 70%);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+    z-index:999;transition:opacity .5s ease;
+  }
+  #splash .logowrap{width:96px;height:96px;animation:pop .7s cubic-bezier(.34,1.56,.64,1);}
+  #splash h1{font-size:22px;letter-spacing:2px;font-weight:700;}
+  #splash p{color:var(--inkdim);font-size:13px;letter-spacing:.5px;}
+  @keyframes pop{from{transform:scale(.4);opacity:0;}to{transform:scale(1);opacity:1;}}
+  #splash.hide{opacity:0;pointer-events:none;}
+
+  /* App shell */
+  #app{position:fixed;inset:0;display:flex;flex-direction:column;opacity:0;transition:opacity .35s ease;}
+  #app.show{opacity:1;}
+  .topbar{
+    display:flex;align-items:center;gap:10px;padding:calc(var(--st) + 14px) 16px 12px;
+    background:linear-gradient(180deg,var(--bg2),rgba(20,32,25,.4));flex-shrink:0;
+  }
+  .iconbtn{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--ink);flex-shrink:0;}
+  .iconbtn:active{background:rgba(255,255,255,.08);}
+  .topbar-title{flex:1;min-width:0;display:flex;align-items:center;gap:10px;text-align:left;}
+  .topbar-title .brandlogo{width:30px;height:30px;flex-shrink:0;}
+  .topbar-title .tt-txt{min-width:0;}
+  .topbar-title .tt-txt b{display:block;font-size:16px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .topbar-title .tt-txt span{display:block;font-size:12px;color:var(--inkdim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+  #view{flex:1;overflow-y:auto;padding:4px 16px calc(96px + var(--sb));-webkit-overflow-scrolling:touch;}
+  .fadein{animation:fadein .25s ease;}
+  @keyframes fadein{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+
+  .fab{
+    position:fixed;right:18px;bottom:calc(78px + var(--sb));width:58px;height:58px;border-radius:50%;
+    background:linear-gradient(135deg,var(--amber),var(--amber2));box-shadow:0 8px 20px rgba(230,172,77,.35);
+    display:flex;align-items:center;justify-content:center;z-index:50;transition:transform .15s ease;
+  }
+  .fab:active{transform:scale(.92);}
+  .fab svg{width:26px;height:26px;stroke:#1b1206;}
+
+  .bottomnav{
+    display:flex;flex-shrink:0;background:var(--bg2);border-top:1px solid var(--cardline);
+    padding-bottom:var(--sb);
+  }
+  .bottomnav.hidden{display:none;}
+  .navbtn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 0 8px;color:var(--inkdim);}
+  .navbtn svg{width:22px;height:22px;}
+  .navbtn span{font-size:11px;}
+  .navbtn.active{color:var(--amber);}
+
+  /* Cards & lists */
+  .card{background:var(--card);border:1px solid var(--cardline);border-radius:var(--rlg);padding:16px;margin-bottom:12px;}
+  .card h3{font-size:13px;color:var(--inkdim);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;}
+  .card .big{font-size:22px;font-weight:700;}
+  .card .sub{font-size:13px;color:var(--inkdim);margin-top:2px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .row{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .listrow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0;border-bottom:1px solid var(--cardline);}
+  .listrow:last-child{border-bottom:none;}
+  .listrow .lr-main b{display:block;font-size:15px;}
+  .listrow .lr-main span{display:block;font-size:12px;color:var(--inkdim);margin-top:2px;}
+  .delbtn{width:30px;height:30px;border-radius:50%;color:var(--inkdim);flex-shrink:0;display:flex;align-items:center;justify-content:center;}
+  .delbtn svg{width:16px;height:16px;}
+  .delbtn:active{background:rgba(214,104,95,.15);color:var(--red);}
+
+  .badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;}
+  .badge.ok{background:rgba(76,141,103,.18);color:#8fd4ab;}
+  .badge.no{background:rgba(214,104,95,.18);color:#f0a49d;}
+  .badge.warn{background:rgba(230,172,77,.18);color:var(--amber);}
+
+  .banner{background:linear-gradient(135deg,rgba(214,104,95,.14),rgba(230,172,77,.1));border:1px solid rgba(214,104,95,.35);
+    border-radius:var(--rmd);padding:14px;margin-bottom:14px;}
+  .banner b{display:block;font-size:14px;margin-bottom:8px;}
+  .banner .btnrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
+
+  .btn{padding:11px 16px;border-radius:12px;font-size:14px;font-weight:600;text-align:center;}
+  .btn.primary{background:linear-gradient(135deg,var(--amber),var(--amber2));color:#1b1206;}
+  .btn.ghost{background:var(--bg2);border:1px solid var(--cardline);color:var(--ink);}
+  .btn.danger{background:rgba(214,104,95,.15);color:#f0a49d;}
+  .btn:active{transform:scale(.97);}
+  .btnfull{width:100%;}
+
+  /* Selection screen */
+  .animalcard{background:var(--card);border:1px solid var(--cardline);border-radius:var(--rlg);padding:16px;margin-bottom:12px;
+    display:flex;align-items:center;gap:14px;}
+  .animalcard .av{width:50px;height:50px;border-radius:14px;flex-shrink:0;background:linear-gradient(135deg,#24462f,var(--bg));display:flex;align-items:center;justify-content:center;}
+  .animalcard .av svg{width:30px;height:30px;}
+  .animalcard .info b{font-size:16px;display:block;}
+  .animalcard .info span{font-size:13px;color:var(--inkdim);}
+  .addanimalcard{border:2px dashed var(--cardline);border-radius:var(--rlg);padding:22px;text-align:center;color:var(--inkdim);margin-bottom:12px;}
+  .empty{text-align:center;padding:40px 20px;color:var(--inkdim);}
+  .empty .es-logo{width:70px;height:70px;margin:0 auto 14px;opacity:.5;}
+
+  /* Forms & sheets */
+  .sheet-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);opacity:0;pointer-events:none;transition:opacity .25s ease;z-index:80;}
+  .sheet-backdrop.show{opacity:1;pointer-events:auto;}
+  .sheet{position:fixed;left:0;right:0;bottom:0;background:var(--bg2);border-radius:24px 24px 0 0;
+    padding:18px 20px calc(20px + var(--sb));max-height:86vh;overflow-y:auto;transform:translateY(100%);
+    transition:transform .3s cubic-bezier(.32,.72,0,1);z-index:90;}
+  .sheet.show{transform:translateY(0);}
+  .sheet .sheethandle{width:40px;height:4px;background:var(--cardline);border-radius:2px;margin:0 auto 14px;}
+  .sheet h2{font-size:18px;margin-bottom:16px;}
+  .field{margin-bottom:14px;}
+  .field label{display:block;font-size:13px;color:var(--inkdim);margin-bottom:6px;}
+  .field input,.field select,.field textarea{
+    width:100%;background:var(--card);border:1px solid var(--cardline);border-radius:var(--rsm);
+    padding:11px 12px;font-size:15px;color:var(--ink);
+  }
+  .field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--amber);}
+  .field textarea{resize:vertical;min-height:60px;}
+  .segrow{display:flex;gap:8px;}
+  .segbtn{flex:1;padding:11px 8px;border-radius:var(--rsm);border:1px solid var(--cardline);background:var(--card);font-size:13px;font-weight:600;color:var(--inkdim);text-align:center;}
+  .segbtn.on{border-color:var(--amber);color:var(--amber);background:rgba(230,172,77,.1);}
+  .sheetbtns{display:flex;gap:10px;margin-top:6px;}
+
+  .chart-svg{width:100%;height:auto;display:block;}
+  .charteempty{text-align:center;color:var(--inkdim);font-size:13px;padding:24px 0;}
+
+  ::-webkit-scrollbar{width:0;height:0;}
+</style>
+</head>
+<body>
+
+<div id="splash">
+  <div class="logowrap" id="splashLogo"></div>
+  <h1>SQUAMA</h1>
+  <p>cura &amp; monitoraggio rettili</p>
+</div>
+
+<div id="app">
+  <header class="topbar">
+    <button class="iconbtn" id="backBtn" style="display:none;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+    <button class="topbar-title" id="topbarTitle"></button>
+    <button class="iconbtn" id="settingsBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="21" height="21"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
+  </header>
+
+  <main id="view"></main>
+
+  <button class="fab" id="fab">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+  </button>
+
+  <nav class="bottomnav hidden" id="bottomnav">
+    <button class="navbtn" data-tab="home">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9a1 1 0 0 0 1 1H9a1 1 0 0 0 1-1v-4h4v4a1 1 0 0 0 1 1h2.5a1 1 0 0 0 1-1v-9"/></svg>
+      <span>Home</span>
+    </button>
+    <button class="navbtn" data-tab="pasti">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3v7a2 2 0 0 0 2 2v9"/><path d="M7 3v4M10 3v4"/><path d="M17 3c-1.6 0-2.7 1.8-2.7 4s1.1 4 2.7 4v10"/></svg>
+      <span>Pasti</span>
+    </button>
+    <button class="navbtn" data-tab="peso">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><path d="M12 8v4l3 2"/></svg>
+      <span>Peso</span>
+    </button>
+  </nav>
+</div>
+
+<div class="sheet-backdrop" id="sheetBackdrop"></div>
+<div class="sheet" id="sheet"><div class="sheethandle"></div><div id="sheetBody"></div></div>
+
+<script>
+/* ---------- Utils ---------- */
+const $=s=>document.querySelector(s);
+const uid=()=>'id_'+Math.random().toString(36).slice(2,9)+Date.now().toString(36);
+const todayISO=()=>new Date().toISOString().slice(0,10);
+const esc=s=>{if(s==null)return '';return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));};
+const daysBetween=(a,b)=>Math.round((new Date(b+'T00:00:00')-new Date(a+'T00:00:00'))/86400000);
+const addDaysISO=(iso,n)=>{const d=new Date(iso+'T00:00:00');d.setDate(d.getDate()+n);return d.toISOString().slice(0,10);};
+const fmtD=iso=>{if(!iso)return '—';return new Date(iso+'T00:00:00').toLocaleDateString('it-IT',{day:'numeric',month:'short',year:'numeric'});};
+const fmtDshort=iso=>{if(!iso)return '—';return new Date(iso+'T00:00:00').toLocaleDateString('it-IT',{day:'numeric',month:'short'});};
+const ageFromDob=iso=>{
+  if(!iso)return null;
+  const b=new Date(iso+'T00:00:00'),n=new Date();
+  let y=n.getFullYear()-b.getFullYear(),m=n.getMonth()-b.getMonth();
+  if(m<0||(m===0&&n.getDate()<b.getDate())){y--;m+=12;}
+  if(y<1)return m+' mesi';
+  return y+(y===1?' anno':' anni')+(m>0?', '+m+' mesi':'');
+};
+
+/* ---------- Logo (procedural coiled snake) ---------- */
+function buildLogoSVG(withBg){
+  return `<img src="icon.png" alt="Squama" style="width:100%;height:100%;object-fit:cover;border-radius:${withBg?'22%':'0'};display:block;"/>`;
+}
+function svgDataURI(svg){return 'data:image/svg+xml,'+encodeURIComponent(svg);}
+
+/* ---------- PWA setup ---------- */
+function setupPWA(){
+  try{
+    if('serviceWorker' in navigator){
+      navigator.serviceWorker.register('sw.js').catch(()=>{});
+    }
+  }catch(e){}
+}
+let deferredInstall=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstall=e;const b=$('#installBtn');if(b)b.style.display='block';});
+async function tryInstall(){if(!deferredInstall)return;deferredInstall.prompt();await deferredInstall.userChoice;deferredInstall=null;const b=$('#installBtn');if(b)b.style.display='none';}
+
+/* ---------- Storage ---------- */
+const hasCloud=typeof window.storage!=='undefined';
+async function sGet(key){
+  if(hasCloud){try{const r=await window.storage.get(key,false);return r?r.value:null;}catch(e){return null;}}
+  try{return localStorage.getItem('squama:'+key);}catch(e){return null;}
+}
+async function sSet(key,val){
+  if(hasCloud){try{await window.storage.set(key,val,false);}catch(e){console.error('storage set failed',e);}return;}
+  try{localStorage.setItem('squama:'+key,val);}catch(e){console.error('storage set failed',e);}
+}
+async function sDel(key){
+  if(hasCloud){try{await window.storage.delete(key,false);}catch(e){}return;}
+  try{localStorage.removeItem('squama:'+key);}catch(e){}
+}
+
+const state={animals:[],activeId:null,data:{},route:'selection',tab:'home',notif:{}};
+
+async function loadAll(){
+  const a=await sGet('animals-list');
+  state.animals=a?JSON.parse(a):[];
+  const act=await sGet('active-animal-id');
+  state.activeId=act?JSON.parse(act):(state.animals[0]?state.animals[0].id:null);
+  const nl=await sGet('notif-log');
+  state.notif=nl?JSON.parse(nl):{};
+  if(state.activeId) await ensurePetData(state.activeId);
+}
+async function ensurePetData(id){
+  if(state.data[id])return;
+  const d=await sGet('pet-data:'+id);
+  state.data[id]=d?JSON.parse(d):{meals:[],weights:[],fasts:[],sheds:[]};
+}
+async function savePetData(id){await sSet('pet-data:'+id,JSON.stringify(state.data[id]));}
+async function saveAnimals(){await sSet('animals-list',JSON.stringify(state.animals));}
+async function saveActive(){await sSet('active-animal-id',JSON.stringify(state.activeId));}
+async function saveNotif(){await sSet('notif-log',JSON.stringify(state.notif));}
+
+/* ---------- Business logic ---------- */
+function getAnimal(id){return state.animals.find(a=>a.id===id);}
+function lastAccepted(id){
+  const m=state.data[id].meals.filter(x=>x.outcome==='accettato').sort((a,b)=>b.date.localeCompare(a.date));
+  return m[0]||null;
+}
+function lastAnyMeal(id){
+  const m=[...state.data[id].meals].sort((a,b)=>b.date.localeCompare(a.date));
+  return m[0]||null;
+}
+function nextFeedingInfo(id){
+  const an=getAnimal(id),la=lastAccepted(id);
+  if(!la)return null;
+  const expected=addDaysISO(la.date,an.intervalDays);
+  const today=todayISO();
+  const overdueDays=daysBetween(expected,today);
+  return {expected,overdueDays,base:la.date};
+}
+function isFastResolved(id,expectedDate){
+  return state.data[id].fasts.some(f=>f.expectedDate===expectedDate) ||
+         state.data[id].meals.some(m=>m.outcome==='accettato'&&m.date>=expectedDate);
+}
+function lastShed(id){
+  const s=[...state.data[id].sheds].sort((a,b)=>b.blueDate.localeCompare(a.blueDate));
+  return s[0]||null;
+}
+function sortedWeights(id){return [...state.data[id].weights].sort((a,b)=>a.date.localeCompare(b.date));}
+function sortedMealsDesc(id){return [...state.data[id].meals].sort((a,b)=>b.date.localeCompare(a.date));}
+function sortedFastsDesc(id){return [...state.data[id].fasts].sort((a,b)=>b.date.localeCompare(a.date));}
+
+/* ---------- Chart ---------- */
+function renderChart(weights){
+  if(weights.length<2)return '<div class="charteempty">Aggiungi almeno 2 misurazioni per vedere il grafico</div>';
+  const W=300,H=130,pad=20;
+  const vals=weights.map(w=>w.grams);
+  const min=Math.min(...vals),max=Math.max(...vals),range=(max-min)||1;
+  const stepX=(W-pad*2)/(weights.length-1);
+  const pts=weights.map((w,i)=>[pad+i*stepX,H-pad-((w.grams-min)/range)*(H-pad*2)]);
+  const path=pts.map((p,i)=>(i===0?'M':'L')+p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
+  const area=path+` L ${pts[pts.length-1][0].toFixed(1)},${H-pad} L ${pts[0][0].toFixed(1)},${H-pad} Z`;
+  const dots=pts.map(p=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3.6" fill="#e6ac4d" stroke="#0e1712" stroke-width="1.5"/>`).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" class="chart-svg">
+    <defs><linearGradient id="ag" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#e6ac4d" stop-opacity="0.35"/><stop offset="100%" stop-color="#e6ac4d" stop-opacity="0"/></linearGradient></defs>
+    <path d="${area}" fill="url(#ag)" stroke="none"/>
+    <path d="${path}" fill="none" stroke="#e6ac4d" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+    ${dots}
+  </svg>`;
+}
+
+/* ---------- Rendering ---------- */
+function setTopbar(){
+  const back=$('#backBtn'),title=$('#topbarTitle'),nav=$('#bottomnav');
+  if(state.route==='selection'){
+    back.style.display='none';
+    title.innerHTML=`<span class="brandlogo">${buildLogoSVG(true)}</span><span class="tt-txt"><b>Squama</b><span>i tuoi rettili</span></span>`;
+    nav.classList.add('hidden');
+  }else{
+    const an=getAnimal(state.activeId);
+    back.style.display='flex';
+    title.innerHTML=`<span class="tt-txt"><b>${esc(an.name)}</b><span>${esc(an.species)}</span></span>`;
+    nav.classList.remove('hidden');
+    document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active',b.dataset.tab===state.tab));
+  }
+}
+
+function render(){
+  setTopbar();
+  const v=$('#view');
+  if(state.route==='selection'){v.innerHTML=renderSelection();}
+  else{
+    if(state.tab==='home')v.innerHTML=renderHome(state.activeId);
+    else if(state.tab==='pasti')v.innerHTML=renderPasti(state.activeId);
+    else v.innerHTML=renderPeso(state.activeId);
+  }
+  v.classList.remove('fadein');void v.offsetWidth;v.classList.add('fadein');
+}
+
+function renderSelection(){
+  if(state.animals.length===0){
+    return `<div class="empty"><div class="es-logo">${buildLogoSVG(false)}</div>
+      <p>Nessun animale ancora registrato.<br>Aggiungi il tuo primo rettile per iniziare a monitorare pasti, peso e muta.</p>
+      <div style="margin-top:18px;"><button class="btn primary" data-action="addAnimal">+ Aggiungi animale</button></div></div>`;
+  }
+  let h=state.animals.map(a=>{
+    const nf=state.data[a.id]?nextFeedingInfo(a.id):null;
+    let sub=esc(a.species);
+    if(nf) sub+= nf.overdueDays>0 ? ` · in ritardo di ${nf.overdueDays}g` : ` · prossimo pasto ${fmtDshort(nf.expected)}`;
+    return `<button class="animalcard" data-action="selectAnimal" data-id="${a.id}" style="width:100%;text-align:left;">
+      <div class="av">${buildLogoSVG(false)}</div>
+      <div class="info"><b>${esc(a.name)}</b><span>${sub}</span></div>
+    </button>`;
+  }).join('');
+  h+=`<button class="addanimalcard" data-action="addAnimal" style="width:100%;">+ Aggiungi un altro animale</button>`;
+  return h;
+}
+
+function renderHome(id){
+  const an=getAnimal(id),d=state.data[id];
+  const la=lastAnyMeal(id),nf=nextFeedingInfo(id),lw=sortedWeights(id).slice(-1)[0];
+  const wArr=sortedWeights(id);
+  const prevW=wArr.length>1?wArr[wArr.length-2]:null;
+  const ls=lastShed(id);
+  let banner='';
+  if(nf && nf.overdueDays>0 && !isFastResolved(id,nf.expected)){
+    banner=`<div class="banner"><b>⚠️ Pasto previsto il ${fmtD(nf.expected)} non risulta registrato (${nf.overdueDays} giorni di ritardo)</b>
+      <div class="btnrow">
+        <button class="btn primary" data-action="addMeal">Ha mangiato</button>
+        <button class="btn ghost" data-action="resolveFast" data-expected="${nf.expected}">Segnala perché</button>
+      </div></div>`;
+  }
+  return `${banner}
+  <div class="grid2">
+    <div class="card"><h3>Ultimo pasto</h3>
+      ${la?`<div class="big">${fmtDshort(la.date)}</div><div class="sub">${esc(la.preyType)} · <span class="badge ${la.outcome==='accettato'?'ok':'no'}">${la.outcome}</span></div>`:`<div class="sub">Nessun pasto registrato</div>`}
+    </div>
+    <div class="card"><h3>Prossimo pasto</h3>
+      ${nf?`<div class="big">${fmtDshort(nf.expected)}</div><div class="sub">${nf.overdueDays>0?`in ritardo di ${nf.overdueDays}g`:(nf.overdueDays===0?'oggi':'tra '+(-nf.overdueDays)+'g')}</div>`:`<div class="sub">Registra un pasto accettato per iniziare la stima</div>`}
+    </div>
+  </div>
+  <div class="grid2">
+    <div class="card"><h3>Peso attuale</h3>
+      ${lw?`<div class="big">${lw.grams} g</div><div class="sub">${prevW?((lw.grams-prevW.grams>=0?'+':'')+(lw.grams-prevW.grams)+' g in '+daysBetween(prevW.date,lw.date)+'g'):fmtDshort(lw.date)}</div>`:`<div class="sub">Nessuna misurazione</div>`}
+    </div>
+    <div class="card"><h3>Ultima muta</h3>
+      ${ls?`<div class="big">${fmtDshort(ls.blueDate)}</div><div class="sub">${ls.shedDate?'completata '+fmtDshort(ls.shedDate):'in blu, in attesa'}</div>`:`<div class="sub">Nessun evento registrato</div>`}
+    </div>
+  </div>
+  <div class="card"><h3>Info animale</h3>
+    <div class="row"><span class="sub">Razza</span><span>${esc(an.race)||'—'}</span></div>
+    <div class="row" style="margin-top:6px;"><span class="sub">Età</span><span>${ageFromDob(an.dob)||'—'}</span></div>
+    <div class="row" style="margin-top:6px;"><span class="sub">Intervallo pasti impostato</span><span>${an.intervalDays} giorni</span></div>
+  </div>`;
+}
+
+function renderPasti(id){
+  const meals=sortedMealsDesc(id),fasts=sortedFastsDesc(id);
+  let list=meals.length===0?'<div class="empty">Nessun pasto registrato ancora</div>':meals.map((m,i)=>{
+    const prev=meals[i+1];
+    const gap=prev?daysBetween(prev.date,m.date)+'g dal precedente':'';
+    return `<div class="listrow"><div class="lr-main"><b>${fmtD(m.date)} <span class="badge ${m.outcome==='accettato'?'ok':'no'}">${m.outcome}</span></b>
+      <span>${esc(m.preyType)}${m.preySize?' · '+esc(m.preySize):''}${gap?' · '+gap:''}${m.note?' · '+esc(m.note):''}</span></div>
+      <button class="delbtn" data-action="delMeal" data-id="${m.id}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>`;
+  }).join('');
+  let fastsHtml='';
+  if(fasts.length>0){
+    fastsHtml=`<div class="card" style="margin-top:6px;"><h3>Digiuni registrati</h3>`+fasts.map(f=>
+      `<div class="listrow"><div class="lr-main"><b>${fmtD(f.date)} <span class="badge warn">${esc(f.reason)}</span></b><span>${f.excessDays}g oltre l'intervallo${f.note?' · '+esc(f.note):''}</span></div>
+       <button class="delbtn" data-action="delFast" data-id="${f.id}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>`
+    ).join('')+`</div>`;
+  }
+  return `<div class="card">${list}</div>${fastsHtml}`;
+}
+
+function renderPeso(id){
+  const w=sortedWeights(id);
+  const chart=renderChart(w);
+  const wDesc=[...w].reverse();
+  let list=wDesc.length===0?'<div class="empty">Nessuna misurazione registrata ancora</div>':wDesc.map((x,i)=>{
+    const prev=wDesc[i+1];
+    const delta=prev?(x.grams-prev.grams):null;
+    return `<div class="listrow"><div class="lr-main"><b>${x.grams} g</b>
+      <span>${fmtD(x.date)}${delta!=null?' · '+(delta>=0?'+':'')+delta+'g in '+daysBetween(prev.date,x.date)+'g':''}${x.note?' · '+esc(x.note):''}</span></div>
+      <button class="delbtn" data-action="delWeight" data-id="${x.id}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>`;
+  }).join('');
+  return `<div class="card">${chart}</div><div class="card">${list}</div>`;
+}
+
+/* ---------- Sheets ---------- */
+function openSheet(html){
+  $('#sheetBody').innerHTML=html;
+  $('#sheetBackdrop').classList.add('show');
+  $('#sheet').classList.add('show');
+}
+function closeSheet(){
+  $('#sheetBackdrop').classList.remove('show');
+  $('#sheet').classList.remove('show');
+}
+
+function formAnimalHtml(existing){
+  const isEdit=!!existing;
+  return `<h2>${isEdit?'Modifica animale':'Nuovo animale'}</h2>
+  <div class="field"><label>Nome</label><input id="f-name" value="${existing?esc(existing.name):''}" placeholder="es. Kaa"/></div>
+  <div class="field"><label>Specie</label><input id="f-specie" value="${existing?esc(existing.species):'Boa constrictor imperator'}"/></div>
+  <div class="field"><label>Razza / morph</label><input id="f-race" value="${existing?esc(existing.race):''}" placeholder="es. Hypo, IMG, Sunglow..."/></div>
+  <div class="field"><label>Data di nascita</label><input id="f-dob" type="date" max="${todayISO()}" value="${existing?existing.dob||'':''}"/></div>
+  <div class="field"><label>Intervallo pasti desiderato (giorni)</label><input id="f-interval" type="number" min="1" value="${existing?existing.intervalDays:10}"/></div>
+  <div class="sheetbtns">
+    <button class="btn primary btnfull" data-action="${isEdit?'saveAnimalEdit':'saveAnimalNew'}" data-id="${existing?existing.id:''}">Salva</button>
+  </div>
+  ${isEdit?`<button class="btn danger btnfull" style="margin-top:10px;" data-action="deleteAnimal" data-id="${existing.id}">Elimina animale</button>`:''}`;
+}
+
+function formMealHtml(){
+  return `<h2>Registra pasto</h2>
+  <div class="field"><label>Data</label><input id="m-date" type="date" max="${todayISO()}" value="${todayISO()}"/></div>
+  <div class="field"><label>Tipo di preda</label><select id="m-type"><option>Topo</option><option>Ratto</option><option>Coniglio</option><option>Pulcino</option><option>Altro</option></select></div>
+  <div class="field"><label>Taglia</label><input id="m-size" placeholder="es. M, Weaner, 150g..."/></div>
+  <div class="field"><label>Esito</label><div class="segrow">
+    <button type="button" class="segbtn on" data-val="accettato" data-action="toggleOutcome">Accettato</button>
+    <button type="button" class="segbtn" data-val="rifiutato" data-action="toggleOutcome">Rifiutato</button>
+  </div></div>
+  <div class="field"><label>Note (opzionale)</label><textarea id="m-note"></textarea></div>
+  <div class="sheetbtns"><button class="btn primary btnfull" data-action="saveMeal">Salva</button></div>`;
+}
+
+function formWeightHtml(){
+  return `<h2>Registra peso</h2>
+  <div class="field"><label>Data</label><input id="w-date" type="date" max="${todayISO()}" value="${todayISO()}"/></div>
+  <div class="field"><label>Peso (grammi)</label><input id="w-grams" type="number" min="0" placeholder="es. 850"/></div>
+  <div class="field"><label>Note (opzionale)</label><textarea id="w-note"></textarea></div>
+  <div class="sheetbtns"><button class="btn primary btnfull" data-action="saveWeight">Salva</button></div>`;
+}
+
+function formShedHtml(){
+  return `<h2>Registra muta</h2>
+  <div class="field"><label>Data "in blu"</label><input id="s-blue" type="date" max="${todayISO()}" value="${todayISO()}"/></div>
+  <div class="field"><label>Data muta completata (opzionale)</label><input id="s-shed" type="date" max="${todayISO()}"/></div>
+  <div class="field"><label>Note (opzionale)</label><textarea id="s-note"></textarea></div>
+  <div class="sheetbtns"><button class="btn primary btnfull" data-action="saveShed">Salva</button></div>`;
+}
+
+function formFastHtml(expected){
+  const overdue=daysBetween(expected,todayISO());
+  return `<h2>Perché non ha mangiato?</h2>
+  <p class="sub" style="margin-bottom:14px;">Pasto previsto il ${fmtD(expected)} · ${overdue} giorni di ritardo</p>
+  <div class="field"><label>Motivo</label><div class="segrow" style="flex-wrap:wrap;" id="fastReasons">
+    ${['Rifiutato','In muta','Brumazione','Malattia','Altro'].map(r=>`<button type="button" class="segbtn" data-val="${r}" data-action="toggleReason" style="flex:1 1 30%;">${r}</button>`).join('')}
+  </div></div>
+  <div class="field"><label>Note (opzionale)</label><textarea id="fast-note"></textarea></div>
+  <div class="sheetbtns"><button class="btn primary btnfull" data-action="saveFast" data-expected="${expected}">Registra</button></div>`;
+}
+
+function formSettingsHtml(){
+  const notifState=('Notification' in window)?Notification.permission:'unsupported';
+  return `<h2>Impostazioni</h2>
+  <div class="field"><label>Promemoria pasto</label>
+    <button class="btn ghost btnfull" data-action="reqNotif">${notifState==='granted'?'✓ Notifiche attive':'Attiva notifiche'}</button>
+  </div>
+  <div class="field"><button class="btn primary btnfull" style="display:none;" id="installBtn" data-action="doInstall">Installa app su questo dispositivo</button></div>
+  <p class="sub">Le notifiche di promemoria (9:30 il giorno del pasto, 21:00 la sera prima) funzionano quando l'app è aperta o installata sul dispositivo. Per un'app installabile a tutti gli effetti, ospita questo file su un dominio HTTPS tuo.</p>`;
+}
+
+/* ---------- Actions ---------- */
+async function selectAnimal(id){
+  state.activeId=id;await saveActive();await ensurePetData(id);
+  state.route='animal';state.tab='home';render();
+}
+function goBack(){state.route='selection';render();}
+function setTab(t){state.tab=t;render();}
+
+async function saveAnimalNew(){
+  const a={id:uid(),name:$('#f-name').value.trim()||'Senza nome',species:$('#f-specie').value.trim()||'—',
+    race:$('#f-race').value.trim(),dob:$('#f-dob').value||'',intervalDays:parseInt($('#f-interval').value)||10};
+  state.animals.push(a);await saveAnimals();
+  state.data[a.id]={meals:[],weights:[],fasts:[],sheds:[]};await savePetData(a.id);
+  closeSheet();await selectAnimal(a.id);
+}
+async function saveAnimalEdit(id){
+  const a=getAnimal(id);
+  a.name=$('#f-name').value.trim()||a.name;a.species=$('#f-specie').value.trim()||a.species;
+  a.race=$('#f-race').value.trim();a.dob=$('#f-dob').value||'';a.intervalDays=parseInt($('#f-interval').value)||a.intervalDays;
+  await saveAnimals();closeSheet();render();
+}
+async function deleteAnimal(id){
+  state.animals=state.animals.filter(a=>a.id!==id);await saveAnimals();
+  delete state.data[id];await sDel('pet-data:'+id);
+  if(state.activeId===id){state.activeId=state.animals[0]?state.animals[0].id:null;await saveActive();}
+  closeSheet();state.route='selection';render();
+}
+
+let curOutcome='accettato';
+async function saveMeal(){
+  const id=state.activeId;
+  state.data[id].meals.push({id:uid(),date:$('#m-date').value||todayISO(),preyType:$('#m-type').value,
+    preySize:$('#m-size').value.trim(),outcome:curOutcome,note:$('#m-note').value.trim()});
+  await savePetData(id);closeSheet();render();
+}
+async function delMeal(mid){
+  const id=state.activeId;state.data[id].meals=state.data[id].meals.filter(m=>m.id!==mid);
+  await savePetData(id);render();
+}
+async function saveWeight(){
+  const id=state.activeId;
+  state.data[id].weights.push({id:uid(),date:$('#w-date').value||todayISO(),grams:parseInt($('#w-grams').value)||0,note:$('#w-note').value.trim()});
+  await savePetData(id);closeSheet();render();
+}
+async function delWeight(wid){
+  const id=state.activeId;state.data[id].weights=state.data[id].weights.filter(w=>w.id!==wid);
+  await savePetData(id);render();
+}
+async function saveShed(){
+  const id=state.activeId;
+  state.data[id].sheds.push({id:uid(),blueDate:$('#s-blue').value||todayISO(),shedDate:$('#s-shed').value||'',note:$('#s-note').value.trim()});
+  await savePetData(id);closeSheet();render();
+}
+let curReason=null;
+async function saveFast(expected){
+  if(!curReason)return;
+  const id=state.activeId,overdue=daysBetween(expected,todayISO());
+  state.data[id].fasts.push({id:uid(),date:todayISO(),expectedDate:expected,reason:curReason,excessDays:overdue,note:$('#fast-note').value.trim()});
+  await savePetData(id);closeSheet();render();
+}
+async function delFast(fid){
+  const id=state.activeId;state.data[id].fasts=state.data[id].fasts.filter(f=>f.id!==fid);
+  await savePetData(id);render();
+}
+
+/* ---------- Notifications ---------- */
+function reqNotif(){if('Notification' in window)Notification.requestPermission().then(()=>openSheet(formSettingsHtml()));}
+async function checkSchedule(){
+  if(!('Notification' in window)||Notification.permission!=='granted')return;
+  const id=state.activeId;if(!id||!state.data[id])return;
+  const nf=nextFeedingInfo(id);if(!nf)return;
+  const an=getAnimal(id),now=new Date(),hh=now.getHours(),mm=now.getMinutes(),today=todayISO();
+  const dayBefore=addDaysISO(nf.expected,-1);
+  if(today===nf.expected&&hh===9&&mm>=30&&mm<40&&state.notif.due!==today){
+    new Notification('Squama',{body:`Oggi è previsto il pasto di ${an.name}`});
+    state.notif.due=today;await saveNotif();
+  }
+  if(today===dayBefore&&hh===21&&mm<10&&state.notif.before!==today){
+    new Notification('Squama',{body:`Domani è previsto il pasto di ${an.name}`});
+    state.notif.before=today;await saveNotif();
+  }
+}
+setInterval(checkSchedule,60000);
+
+/* ---------- Event wiring ---------- */
+document.addEventListener('click',async e=>{
+  const t=e.target.closest('[data-action]');
+  if(!t)return;
+  const act=t.dataset.action;
+  if(act==='selectAnimal')return selectAnimal(t.dataset.id);
+  if(act==='addAnimal'){curOutcome='accettato';return openSheet(formAnimalHtml(null));}
+  if(act==='saveAnimalNew')return saveAnimalNew();
+  if(act==='saveAnimalEdit')return saveAnimalEdit(t.dataset.id);
+  if(act==='deleteAnimal')return deleteAnimal(t.dataset.id);
+  if(act==='addMeal'){curOutcome='accettato';openSheet(formMealHtml());return;}
+  if(act==='saveMeal')return saveMeal();
+  if(act==='delMeal')return delMeal(t.dataset.id);
+  if(act==='addWeight')return openSheet(formWeightHtml());
+  if(act==='saveWeight')return saveWeight();
+  if(act==='delWeight')return delWeight(t.dataset.id);
+  if(act==='addShed')return openSheet(formShedHtml());
+  if(act==='saveShed')return saveShed();
+  if(act==='resolveFast'){curReason=null;openSheet(formFastHtml(t.dataset.expected));return;}
+  if(act==='saveFast')return saveFast(t.dataset.expected);
+  if(act==='delFast')return delFast(t.dataset.id);
+  if(act==='toggleOutcome'){document.querySelectorAll('#m-type ~ .segrow .segbtn, .segrow .segbtn[data-val]').forEach(b=>{});
+    t.parentElement.querySelectorAll('.segbtn').forEach(b=>b.classList.remove('on'));t.classList.add('on');curOutcome=t.dataset.val;return;}
+  if(act==='toggleReason'){t.parentElement.querySelectorAll('.segbtn').forEach(b=>b.classList.remove('on'));t.classList.add('on');curReason=t.dataset.val;return;}
+  if(act==='reqNotif')return reqNotif();
+  if(act==='doInstall')return tryInstall();
+});
+
+$('#backBtn').addEventListener('click',goBack);
+$('#topbarTitle').addEventListener('click',()=>{if(state.route==='animal')openSheet(formAnimalHtml(getAnimal(state.activeId)));});
+$('#settingsBtn').addEventListener('click',()=>openSheet(formSettingsHtml()));
+$('#sheetBackdrop').addEventListener('click',closeSheet);
+document.querySelectorAll('.navbtn').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.tab)));
+$('#fab').addEventListener('click',()=>{
+  if(state.route==='selection')return openSheet(formAnimalHtml(null));
+  if(state.tab==='pasti'){curOutcome='accettato';return openSheet(formMealHtml());}
+  if(state.tab==='peso')return openSheet(formWeightHtml());
+  // home tab -> quick menu
+  openSheet(`<h2>Registra</h2>
+    <div class="sheetbtns" style="flex-direction:column;">
+      <button class="btn primary btnfull" data-action="addMeal">🍽 Pasto</button>
+      <button class="btn primary btnfull" data-action="addWeight">⚖️ Peso</button>
+      <button class="btn primary btnfull" data-action="addShed">🔵 Muta ("in blu")</button>
+    </div>`);
+});
+
+/* ---------- Init ---------- */
+(async function init(){
+  setupPWA();
+  $('#splashLogo').innerHTML=buildLogoSVG(true);
+  await loadAll();
+  if(state.activeId){state.route='animal';state.tab='home';}else{state.route='selection';}
+  render();
+  setTimeout(()=>{$('#splash').classList.add('hide');$('#app').classList.add('show');},900);
+  checkSchedule();
+})();
+</script>
+</body>
+</html>
